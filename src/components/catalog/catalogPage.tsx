@@ -5,7 +5,7 @@ import { EmptyCatalogState } from "./emptyCatalogState";
 import { ResumeBanner } from "./resumeBanner";
 import { SiteHeader } from "./siteHeader";
 
-import { isDefaultFilter, toSearchParams, type CatalogFilter } from "@/domain/catalogFilter";
+import { catalogHref, isDefaultFilter, type CatalogFilter } from "@/domain/catalogFilter";
 import { formatInteger } from "@/domain/format";
 import type { CourseCategory, CourseSummary } from "@/domain/types";
 
@@ -95,7 +95,7 @@ export function CatalogPage({
               categoryLabel={categoryLabel}
               statusLabel={statusLabel(filter.status)}
               availableCount={availableCount}
-              clearHref={toSearchParams({ category: "all", status: "all", query: "" })}
+              clearHref={catalogHref({ category: "all", status: "all", query: "" })}
             />
           )}
         </div>

@@ -94,6 +94,18 @@ export function toSearchParams(filter: CatalogFilter): string {
   return serialised ? `?${serialised}` : "";
 }
 
+/**
+ * Absolute catalogue path for a filter — the only thing that should build one.
+ *
+ * The leading slash is load-bearing. `toSearchParams` returns `""` when every
+ * filter is at its default, and an `href=""` resolves to the *current* URL, so a
+ * "Clear filters" link built that way silently reloads the page it is on instead
+ * of clearing anything. Keeping the prefix here means no call site can forget it.
+ */
+export function catalogHref(filter: CatalogFilter): string {
+  return `/${toSearchParams(filter)}`;
+}
+
 /** Switches one dimension of the current filter, leaving the others untouched. */
 export function withFilterValue(
   filter: CatalogFilter,

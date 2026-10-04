@@ -112,7 +112,11 @@ export function VideoStage({
       onPointerMove={revealControls}
       onPointerDown={revealControls}
       className={[
-        "group relative isolate w-full overflow-hidden bg-ink-950",
+        // No `w-full` here: the parent is a flex column, so `align-items: stretch`
+        // already gives the stage the container width, and the negative margin
+        // passed by the caller then widens it edge to edge. An explicit `w-full`
+        // would pin the used width and the stage would overhang only on the left.
+        "group relative isolate overflow-hidden bg-ink-950",
         // Desktop / tablet: inline block in the grid column.
         "md:rounded-card md:border md:border-ink-600",
         // Mobile: pinned under the app bar, edge to edge.

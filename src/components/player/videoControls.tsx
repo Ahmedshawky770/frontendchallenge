@@ -88,7 +88,10 @@ export function VideoControls({
           icon="chevronRight"
         />
 
-        <span className="ml-1 text-caption font-medium text-white/85" data-numeric>
+        {/* `whitespace-nowrap` matters once the controls go to 44 px on phones:
+            the readout is the one flexible item left and was wrapping to two
+            lines, which doubled the control bar's height on a 219 px stage. */}
+        <span className="ml-1 whitespace-nowrap text-caption font-medium text-white/85" data-numeric>
           {formatDuration(currentTime)} <span className="text-white/50">/ {formatDuration(duration)}</span>
         </span>
 
@@ -145,11 +148,15 @@ function ControlButton({
       onClick={onClick}
       disabled={disabled}
       className={[
-        "inline-flex h-9 items-center justify-center rounded-control transition-colors duration-micro",
+        // `--tap-target` (44 px) on phones, the denser 36 px from `sm`. The lesson
+        // title is already `hidden lg:block`, which is what makes the wider touch
+        // targets fit: seven controls plus the time readout still leave ~55 px of
+        // slack in a 390 px stage.
+        "inline-flex h-11 shrink-0 items-center justify-center rounded-control transition-colors duration-micro sm:h-9",
         "disabled:cursor-not-allowed disabled:opacity-35",
         emphasis
           ? "w-11 bg-white text-ink-950 hover:bg-white/90"
-          : "min-w-9 px-1.5 text-white/90 hover:bg-white/15",
+          : "min-w-11 px-1.5 text-white/90 hover:bg-white/15 sm:min-w-9",
       ].join(" ")}
     >
       {icon ? <Icon name={icon} size={emphasis ? 18 : 16} /> : null}

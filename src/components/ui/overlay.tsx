@@ -117,7 +117,12 @@ export function Modal({
 export interface PopoverAnchor {
   top: number;
   left: number;
+  /** Pre-computed horizontal correction. Defaults to `translateX(-50%)`. */
+  transform?: string;
 }
+
+/** Keeps a floating panel off the viewport edges. */
+const ANCHOR_MARGIN = 8;
 
 export function Popover({
   open,
@@ -159,7 +164,13 @@ export function Popover({
    * A ref callback runs during commit, before the browser paints, which makes it
    * the right place to measure a node. The alternative — measuring in an effect —
    * works but sets state from an effect body, costing an extra render and, here,
-   * a frame where the popover is positioned at the wrong place.
+   * a frame where the popover is positioned against unmeasured geometry.
+   *
+   * Placement is resolved here rather than in CSS because it needs both boxes:
+   * the trigger decides whether there is room below, and the panel's own size
+   * decides how far it can slide to stay on screen. A 288 px card centred on a
+   * 32 px avatar near the left edge hangs 130 px off-screen otherwise, and one
+   * opened near the bottom of a phone viewport is simply unreachable.
    */
   const attachContainer = useCallback(
     (node: HTMLDivElement | null) => {
@@ -169,13 +180,33 @@ export function Popover({
       const trigger = document.activeElement;
       if (!(trigger instanceof HTMLElement) || trigger === node || node.contains(trigger)) return;
 
-      const rect = trigger.getBoundingClientRect();
-      setMeasuredAnchor({ top: rect.bottom + 8, left: rect.left + rect.width / 2 });
+      const triggerRect = trigger.getBoundingClientRect();
+      const width = node.offsetWidth;
+      const height = node.offsetHeight;
+
+      const roomBelow = window.innerHeight - triggerRect.bottom;
+      const flipAbove =
+        roomBelow < height + ANCHOR_MARGIN && triggerRect.top > height + ANCHOR_MARGIN;
+      const top = flipAbove
+        ? triggerRect.top - height - ANCHOR_MARGIN
+        : triggerRect.bottom + ANCHOR_MARGIN;
+
+      // Centre on the trigger, then clamp so the panel never leaves the viewport.
+      const half = width / 2;
+      const centred = triggerRect.left + triggerRect.width / 2;
+      const latest = window.innerWidth - ANCHOR_MARGIN - half;
+      const left = Math.max(ANCHOR_MARGIN + half, Math.min(centred, latest));
+
+      setMeasuredAnchor({ top, left, transform: `translateX(-${half}px)` });
     },
     [anchorToFocus],
   );
 
   const resolvedAnchor = anchor ?? (anchorToFocus ? measuredAnchor : null);
+  // An unmeasured popover must not paint: before the ref callback runs there is
+  // no correct position for it, and a misplaced frame of a floating panel reads
+  // as a glitch rather than a transition.
+  const positioned = !anchorToFocus || resolvedAnchor !== null;
 
   useEffect(() => {
     if (!open) return;
@@ -220,7 +251,12 @@ export function Popover({
       }`;
 
   const style: React.CSSProperties | undefined = resolvedAnchor
-    ? { top: resolvedAnchor.top, left: resolvedAnchor.left, transform: "translateX(-50%)" }
+    ? {
+        top: resolvedAnchor.top,
+        left: resolvedAnchor.left,
+        transform: resolvedAnchor.transform ?? "translateX(-50%)",
+        visibility: positioned ? undefined : "hidden",
+      }
     : undefined;
 
   return (

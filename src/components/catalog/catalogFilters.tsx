@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 
 import { Icon } from "@/components/ui/icon";
 import { SegmentedControl } from "@/components/ui/segmentedControl";
-import { toSearchParams, type CatalogFilter, type CatalogStatusFilter } from "@/domain/catalogFilter";
+import { catalogHref, type CatalogFilter, type CatalogStatusFilter } from "@/domain/catalogFilter";
 
 export interface CatalogFiltersProps {
   filter: CatalogFilter;
@@ -52,9 +52,9 @@ export function CatalogFilters({ filter }: CatalogFiltersProps) {
   }, [filter.query]);
 
   function navigate(next: CatalogFilter) {
-    const search = toSearchParams(next);
+    const href = catalogHref(next);
     startTransition(() => {
-      router.replace(search ? `${pathname}${search}` : pathname, { scroll: false });
+      router.replace(href === "/" ? pathname : href, { scroll: false });
     });
   }
 

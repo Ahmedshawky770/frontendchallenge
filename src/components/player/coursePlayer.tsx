@@ -143,7 +143,13 @@ export function CoursePlayer({
         className="grid grid-cols-1 items-start gap-4 transition-[grid-template-columns] duration-layout lg:grid-cols-[minmax(0,1fr)_var(--sidebar-track)] lg:gap-6"
       >
         <main className="flex min-w-0 flex-col gap-4">
-          <div className="flex min-w-0 flex-col overflow-hidden rounded-card border border-border bg-surface shadow-xs">
+          {/*
+            Card treatment starts at `md`. Below that the stage is edge-to-edge,
+            and this wrapper must not clip it — `overflow-hidden` plus a border
+            and radius would trim the stage back to the page gutter and undo the
+            negative margin the stage applies.
+          */}
+          <div className="flex min-w-0 flex-col bg-surface md:overflow-hidden md:rounded-card md:border md:border-border md:shadow-xs">
             <VideoStage
               transport={transport}
               stageUrl={course.stageUrl}
@@ -157,6 +163,10 @@ export function CoursePlayer({
               onPrevious={() => dispatch({ type: "goToPreviousLesson" })}
               hasNext={Boolean(next)}
               hasPrevious={Boolean(previous)}
+              // Cancels the page gutter so the stage is edge-to-edge on phones,
+              // which is the documented mobile layout. The rounded card and
+              // border only come back at `md`, where the gutter returns too.
+              className="-mx-3 sm:-mx-4 lg:-mx-6"
             />
 
             <LessonHeader

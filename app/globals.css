@@ -193,6 +193,21 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* Tailwind's preflight leaves the cursor at `default`, which makes every
+     button in the player read as inert until hovered. Interactive elements get
+     a pointer; explicitly non-interactive ones opt back out. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
   :focus-visible {
     outline: 2px solid var(--color-brand-600);
     outline-offset: 2px;

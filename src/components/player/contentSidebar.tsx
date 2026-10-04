@@ -76,7 +76,16 @@ export function ContentSidebar({
           "flex flex-col overflow-hidden border-border bg-surface transition-[transform,opacity] duration-overlay",
           // --- mobile: bottom sheet ---
           "fixed inset-x-0 bottom-0 z-40 max-h-[86dvh] rounded-t-panel border-t shadow-lg",
-          sheetOpen ? "translate-y-0" : "pointer-events-none translate-y-[105%]",
+          // `max-lg:` is load-bearing. These two rules describe a sheet that is
+          // parked below the viewport, which is true only below `lg` — on desktop
+          // the same element is a normal grid column. Left unprefixed they also
+          // applied at `lg`, where `pointer-events: none` inherited down to every
+          // lesson row and section header and made the whole course content list
+          // unclickable. `max-lg` also keeps this clear of the `lg:` collapse rule
+          // below, so the two can never fight at the same breakpoint.
+          sheetOpen
+            ? "translate-y-0"
+            : "max-lg:pointer-events-none max-lg:translate-y-[105%]",
           // --- desktop: grid column ---
           // The player has no app bar of its own, so the sticky offset is a plain
           // gutter. It used to subtract `--app-bar-height`, which left the sidebar

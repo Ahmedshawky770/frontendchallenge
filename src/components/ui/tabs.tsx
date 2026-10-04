@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 
 import { Icon, type IconName } from "./icon";
 
@@ -43,6 +43,7 @@ export function Tabs<T extends string>({
   className = "",
 }: TabsProps<T>) {
   const isUnderline = variant === "underline";
+  const tabRefs = useRef(new Map<string, HTMLButtonElement>());
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     const index = items.findIndex((item) => item.id === active);
@@ -58,6 +59,13 @@ export function Tabs<T extends string>({
 
     event.preventDefault();
     onChange(items[nextIndex].id);
+
+    // Automatic activation changes the selection, but React does not move DOM
+    // focus when an element's `tabIndex` flips to -1 — so without this the focus
+    // ring stays on the tab the user just arrowed away from, and the next arrow
+    // press starts from the wrong index. The ARIA pattern is selection and focus
+    // together.
+    tabRefs.current.get(items[nextIndex].id)?.focus();
   }
 
   return (
@@ -65,10 +73,16 @@ export function Tabs<T extends string>({
       role="tablist"
       aria-label={label}
       onKeyDown={handleKeyDown}
-      className={
-        [isUnderline ? "flex gap-1 border-b border-border" : "scrollStrip flex gap-1.5 rounded-control bg-surface-sunken p-1", className]
-          .join(" ")
-      }
+      className={[
+          // `scrollStrip` on the underline variant too: four tabs do not fit a
+          // 390 px phone, and without a scroll container the overflow escapes
+          // the panel and scrolls the whole page sideways. It was previously
+          // hidden by an ancestor's `overflow-hidden`, which only masked it.
+          isUnderline
+            ? "scrollStrip flex gap-1 border-b border-border"
+            : "scrollStrip flex gap-1.5 rounded-control bg-surface-sunken p-1",
+          className,
+        ].join(" ")}
     >
       {items.map((item) => {
         const selected = item.id === active;
@@ -76,6 +90,10 @@ export function Tabs<T extends string>({
         return (
           <button
             key={item.id}
+            ref={(element) => {
+              if (element) tabRefs.current.set(item.id, element);
+              else tabRefs.current.delete(item.id);
+            }}
             role="tab"
             id={`tab-${item.id}`}
             aria-selected={selected}

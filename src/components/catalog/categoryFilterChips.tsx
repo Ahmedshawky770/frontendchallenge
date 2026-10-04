@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { toSearchParams, type CatalogFilter, type CatalogCategoryFilter } from "@/domain/catalogFilter";
+import { catalogHref, type CatalogFilter, type CatalogCategoryFilter } from "@/domain/catalogFilter";
 import type { CourseCategory } from "@/domain/types";
 
 export interface CategoryFilterChipsProps {
@@ -23,7 +23,7 @@ export interface CategoryFilterChipsProps {
  */
 export function CategoryFilterChips({ categories, active, currentFilter }: CategoryFilterChipsProps) {
   const hrefFor = (value: CatalogCategoryFilter) =>
-    `/${toSearchParams({ ...currentFilter, category: value })}`;
+    catalogHref({ ...currentFilter, category: value });
 
   const totalCount = categories.reduce((sum, entry) => sum + entry.count, 0);
 

@@ -54,7 +54,7 @@ export function LessonHeader({
       <div className="flex items-center gap-2 text-caption text-text-tertiary">
         <Link
           href="/"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-xs font-medium transition-colors duration-micro hover:text-text-primary"
+          className="-mx-1 inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xs px-1 font-medium transition-colors duration-micro hover:text-text-primary sm:min-h-0"
         >
           <Icon name="arrowLeft" size={15} />
           All courses
