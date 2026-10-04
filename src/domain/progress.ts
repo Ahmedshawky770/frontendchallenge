@@ -136,10 +136,54 @@ export function toCourseSummary(course: Course, progress: EnrollmentProgress): C
     enrolledCount: course.enrolledCount,
     lessonCount: metrics.totalLessons,
     totalDurationSeconds: metrics.totalDurationSeconds,
+    completedLessons: metrics.completedLessons,
     progressPercent: metrics.progressPercent,
     status: metrics.status,
     lastLessonId: progress.lastLessonId,
+    updatedAt: course.updatedAt,
   };
+}
+
+/** The catalogue call-to-action label, derived from status — never stored twice. */
+export function courseActionLabel(status: CourseStatus): string {
+  if (status === "completed") return "Review course";
+  if (status === "in-progress") return "Resume";
+  return "Start course";
+}
+
+/**
+ * Player route for a course.
+ *
+ * An in-progress course deep-links to the lesson it was left on. The player
+ * seeds its initial lesson from `?lesson=<uuid>` and falls back to the resume
+ * point when the param is missing or no longer valid, so a stale `lastLessonId`
+ * degrades to "resume" rather than rendering an error.
+ *
+ * The path shape is duplicated from the route segment on purpose: the catalogue
+ * and the player both need it, and threading a URL builder through the data
+ * layer to avoid one template string would be worse than the duplication.
+ */
+export function coursePlayerHref(
+  course: Pick<CourseSummary, "slug" | "status" | "lastLessonId">,
+): string {
+  if (course.status === "in-progress" && course.lastLessonId) {
+    return `/courses/${course.slug}?lesson=${course.lastLessonId}`;
+  }
+  return `/courses/${course.slug}`;
+}
+
+/**
+ * The single course to surface as "continue where you left off": the most
+ * recently updated in-progress one. Null when nothing is in progress, which is
+ * the signal to hide the resume banner entirely.
+ */
+export function pickResumeCourse(summaries: CourseSummary[]): CourseSummary | null {
+  const inProgress = summaries.filter((course) => course.status === "in-progress");
+  if (inProgress.length === 0) return null;
+
+  return inProgress.reduce((newest, course) =>
+    course.updatedAt > newest.updatedAt ? course : newest,
+  );
 }
 
 /** Human label for a lesson kind, reused by the lesson row and the tabs. */

@@ -14,6 +14,10 @@
  *   public/course-art/posters/<slug>-1280.webp   course + lesson poster
  *   public/course-art/avatars/<id>.webp          profile avatars
  *   src/data/courseArt.generated.ts             manifest (paths + LQIP data urls)
+ *
+ * Poster titles are rasterised from SVG, which means the build needs one usable
+ * sans-serif face installed. `POSTER_FONT` names it; the script falls back to
+ * whatever fontconfig resolves rather than failing the build.
  */
 
 import { mkdir, writeFile } from "node:fs/promises";
@@ -34,6 +38,9 @@ const AVATAR_SIZE = 128;
 const AVATAR_QUALITY = 78;
 const LQIP_WIDTH = 24;
 
+/** Any neutral grotesque works; the metrics below assume a bold sans. */
+const POSTER_FONT = "Liberation Sans";
+
 /** Deterministic pseudo-random generator so re-running the script is a no-op. */
 function seeded(seed) {
   let value = seed;
@@ -43,8 +50,45 @@ function seeded(seed) {
   };
 }
 
-function posterArtwork({ from, to, accent, seed }) {
-  const random = seeded(seed);
+/** XML-escape: course titles contain `&` and `<` in the fixtures. */
+function escapeXml(value) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/**
+ * Greedy word wrap against an estimated advance width.
+ *
+ * Measuring real glyphs would mean shipping a font metrics table; for a
+ * two-or-three line poster a conservative per-character estimate is accurate
+ * enough, and the estimate is deliberately over-wide so a line never overflows
+ * its column — the failure mode we care about.
+ */
+function wrapTitle(title, fontSize, maxWidth) {
+  const averageGlyphWidth = fontSize * 0.56;
+  const maxCharacters = Math.floor(maxWidth / averageGlyphWidth);
+
+  const lines = [];
+  let line = "";
+
+  for (const word of title.split(/\s+/)) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (candidate.length <= maxCharacters || line === "") {
+      line = candidate;
+    } else {
+      lines.push(line);
+      line = word;
+    }
+  }
+  if (line) lines.push(line);
+
+  return lines.slice(0, 3);
+}
+
+function posterArtwork({ from, to, accent, seed, title, kicker }) {  const random = seeded(seed);
   const blobs = [];
   const rings = [];
 
@@ -79,6 +123,21 @@ function posterArtwork({ from, to, accent, seed }) {
     );
   }
 
+  // The title sits in the lower third over a scrim. The player overlays its own
+  // play button and control bar on this image, so the artwork is deliberately
+  // kept in the bottom band where those controls do not land, and the scrim keeps
+  // the text legible against any of the six gradients.
+  const titleSize = 64;
+  const titleLines = wrapTitle(title, titleSize, POSTER_WIDTH * 0.82);
+  const titleBaseline = POSTER_HEIGHT - 96 - (titleLines.length - 1) * (titleSize + 12);
+
+  const titleMarkup = titleLines
+    .map(
+      (line, index) =>
+        `<text x="88" y="${(titleBaseline + index * (titleSize + 12)).toFixed(1)}" font-family="${POSTER_FONT}, sans-serif" font-size="${titleSize}" font-weight="700" fill="#ffffff" letter-spacing="-1.5">${escapeXml(line)}</text>`,
+    )
+    .join("\n    ");
+
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${POSTER_WIDTH}" height="${POSTER_HEIGHT}" viewBox="0 0 ${POSTER_WIDTH} ${POSTER_HEIGHT}">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
@@ -102,26 +161,75 @@ function posterArtwork({ from, to, accent, seed }) {
       <stop offset="45%" stop-color="#ffffff" stop-opacity="0.10"/>
       <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
+    <linearGradient id="scrim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#020617" stop-opacity="0"/>
+      <stop offset="45%" stop-color="#020617" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#020617" stop-opacity="0.88"/>
+    </linearGradient>
   </defs>
   <rect width="${POSTER_WIDTH}" height="${POSTER_HEIGHT}" fill="url(#bg)"/>
   ${gridLines.join("")}
   ${blobs.join("")}
   ${rings.join("")}
   <rect width="${POSTER_WIDTH}" height="${POSTER_HEIGHT}" fill="url(#sheen)"/>
+  ${title ? `<rect width="${POSTER_WIDTH}" height="${POSTER_HEIGHT}" fill="url(#scrim)"/>` : ""}
+  ${
+    title
+      ? `<text x="90" y="${(titleBaseline - titleLines.length * (titleSize + 12) - 26).toFixed(1)}" font-family="${POSTER_FONT}, sans-serif" font-size="24" font-weight="700" fill="${accent}" letter-spacing="3">${escapeXml(kicker.toUpperCase())}</text>
+  ${titleMarkup}`
+      : ""
+  }
 </svg>`);
 }
 
+/**
+ * A head-and-shoulders silhouette on a per-person gradient.
+ *
+ * Abstract blobs were the first attempt and read as a coloured dot at the 32 px
+ * the UI actually renders — in the leaderboard the avatar *is* the control, so it
+ * has to be recognisable as a person at a glance. A silhouette needs no font, no
+ * photograph, and still survives being tinted by the component's circular mask.
+ */
+/**
+ * Two variants per course, because the two jobs are different.
+ *
+ * `posterArtwork` is a *catalogue thumbnail*: a title and kicker are what a
+ * learner scans for in a grid.
+ *
+ * `stageArtwork` is a *video backdrop* for the player. It carries no text at
+ * all, because the stage overlays its own lesson title, play button and control
+ * bar on the lower third — a title baked into that band sits underneath the
+ * controls and reads as a rendering bug. Reusing the thumbnail here was the
+ * first attempt and it looked exactly that way on a phone.
+ */
+function stageArtwork({ from, to, accent, seed }) {
+  return posterArtwork({ from, to, accent, seed, title: "", kicker: "" });
+}
+
+/**
+ * A head-and-shoulders silhouette on a per-person gradient.
+ *
+ * Abstract blobs were the first attempt and read as a coloured dot at the 32 px
+ * the UI actually renders — in the leaderboard the avatar *is* the control, so it
+ * has to be recognisable as a person at a glance. A silhouette needs no font, no
+ * photograph, and still survives being tinted by the component's circular mask.
+ */
 function avatarArtwork({ from, to, seed }) {
   const random = seeded(seed);
   const shapes = [];
-  for (let index = 0; index < 4; index += 1) {
+  for (let index = 0; index < 3; index += 1) {
     const cx = random() * AVATAR_SIZE;
     const cy = random() * AVATAR_SIZE;
-    const radius = 14 + random() * 46;
+    const radius = 18 + random() * 40;
     shapes.push(
-      `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${radius.toFixed(1)}" fill="#ffffff" fill-opacity="${(0.08 + random() * 0.14).toFixed(3)}"/>`,
+      `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${radius.toFixed(1)}" fill="#ffffff" fill-opacity="${(0.06 + random() * 0.1).toFixed(3)}"/>`,
     );
   }
+
+  const headRadius = 25;
+  const headCx = 64;
+  const headCy = 50;
+
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${AVATAR_SIZE}" height="${AVATAR_SIZE}" viewBox="0 0 ${AVATAR_SIZE} ${AVATAR_SIZE}">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
@@ -131,6 +239,10 @@ function avatarArtwork({ from, to, seed }) {
   </defs>
   <rect width="${AVATAR_SIZE}" height="${AVATAR_SIZE}" fill="url(#bg)"/>
   ${shapes.join("")}
+  <g fill="#ffffff" fill-opacity="0.92">
+    <circle cx="${headCx}" cy="${headCy}" r="${headRadius}"/>
+    <path d="M${headCx - 40} 128a40 40 0 0 1 80 0Z"/>
+  </g>
 </svg>`);
 }
 
@@ -155,12 +267,60 @@ async function buildAvatarLqip(destination, width = 12) {
 }
 
 const posters = [
-  { slug: "advanced-typescript-patterns", from: "#1e1b4b", to: "#4338ca", accent: "#a5b4fc", seed: 101 },
-  { slug: "design-systems-in-practice", from: "#0f172a", to: "#0e7490", accent: "#67e8f9", seed: 202 },
-  { slug: "applied-machine-learning", from: "#052e16", to: "#047857", accent: "#6ee7b7", seed: 303 },
-  { slug: "growth-analytics-funnel", from: "#431407", to: "#c2410c", accent: "#fdba74", seed: 404 },
-  { slug: "product-strategy-masterclass", from: "#4a044e", to: "#a21caf", accent: "#f0abfc", seed: 505 },
-  { slug: "cloud-security-hardening", from: "#450a0a", to: "#b91c1c", accent: "#fca5a5", seed: 606 },
+  {
+    slug: "advanced-typescript-patterns",
+    title: "Advanced TypeScript Patterns for Production Code",
+    kicker: "Engineering · Advanced",
+    from: "#1e1b4b",
+    to: "#4338ca",
+    accent: "#a5b4fc",
+    seed: 101,
+  },
+  {
+    slug: "design-systems-in-practice",
+    title: "Design Systems in Practice",
+    kicker: "Design · Intermediate",
+    from: "#0f172a",
+    to: "#0e7490",
+    accent: "#67e8f9",
+    seed: 202,
+  },
+  {
+    slug: "applied-machine-learning",
+    title: "Applied Machine Learning for Product Teams",
+    kicker: "Data & AI · Intermediate",
+    from: "#052e16",
+    to: "#047857",
+    accent: "#6ee7b7",
+    seed: 303,
+  },
+  {
+    slug: "growth-analytics-funnel",
+    title: "Growth Analytics: From Funnel to Retention",
+    kicker: "Marketing · Beginner",
+    from: "#431407",
+    to: "#c2410c",
+    accent: "#fdba74",
+    seed: 404,
+  },
+  {
+    slug: "product-strategy-masterclass",
+    title: "Product Strategy Masterclass",
+    kicker: "Business · Advanced",
+    from: "#4a044e",
+    to: "#a21caf",
+    accent: "#f0abfc",
+    seed: 505,
+  },
+  {
+    slug: "cloud-security-hardening",
+    title: "Cloud Security Hardening in Practice",
+    kicker: "Security · Advanced",
+    from: "#450a0a",
+    to: "#b91c1c",
+    accent: "#fca5a5",
+    seed: 606,
+  },
 ];
 
 const avatars = [
@@ -194,10 +354,23 @@ async function main() {
       POSTER_QUALITY,
       destination,
     );
+
+    const stageFileName = `${poster.slug}-stage.webp`;
+    const stageDestination = join(posterDirectory, stageFileName);
+    await writeWebp(
+      stageArtwork(poster),
+      POSTER_WIDTH,
+      POSTER_HEIGHT,
+      POSTER_QUALITY,
+      stageDestination,
+    );
+
     posterEntries.push({
       slug: poster.slug,
       url: `/course-art/posters/${fileName}`,
       blurDataUrl: await buildLqip(destination, LQIP_WIDTH),
+      stageUrl: `/course-art/posters/${stageFileName}`,
+      stageBlurDataUrl: await buildLqip(stageDestination, LQIP_WIDTH),
     });
   }
 
@@ -227,8 +400,12 @@ async function main() {
 
 export interface PosterAsset {
   slug: string;
+  /** Catalogue thumbnail: carries the course title. */
   url: string;
   blurDataUrl: string;
+  /** Player backdrop: same artwork, no text, because the stage overlays its own. */
+  stageUrl: string;
+  stageBlurDataUrl: string;
 }
 
 export interface AvatarAsset {

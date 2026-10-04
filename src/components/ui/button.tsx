@@ -122,7 +122,7 @@ const iconButtonVariantClasses = {
 const iconButtonSizeClasses = {
   sm: "size-9 rounded-sm",
   md: "size-11 rounded-sm",
-  lg: "size-tap rounded-md",
+  lg: "size-tap-target rounded-md",
 } as const;
 
 export function IconButton({

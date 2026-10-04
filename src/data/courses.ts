@@ -174,7 +174,6 @@ const courseSeeds: CourseSeed[] = [
             ],
           },
         ],
-        ],
       },
       {
         title: "Generics that scale",
@@ -830,14 +829,26 @@ const courseSeeds: CourseSeed[] = [
   },
 ];
 
-function buildLessons(courseSlug: string, sectionIndex: number, seed: SectionSeed) {
+/**
+ * `startingIndex` is the number of lessons in every preceding section, so
+ * `Lesson.index` is the position in the whole course. It was originally
+ * `lessonIndex + 1` — a within-section number — which contradicted the type's
+ * own contract and made the player disagree with itself: the video badge said
+ * "Lesson 4" while the header underneath said "Lesson 12 / 21".
+ */
+function buildLessons(
+  courseSlug: string,
+  sectionIndex: number,
+  seed: SectionSeed,
+  startingIndex: number,
+) {
   const sectionId = ids.section(courseSlug, sectionIndex);
 
   return seed.lessons.map((lesson, lessonIndex) => ({
     id: ids.lesson(courseSlug, sectionIndex, lessonIndex),
     sectionId,
     courseId: ids.course(courseSlug),
-    index: lessonIndex + 1,
+    index: startingIndex + lessonIndex + 1,
     title: lesson.title,
     kind: lesson.kind ?? "video",
     durationSeconds: lesson.minutes * 60,
@@ -870,6 +881,10 @@ function buildMaterials(courseSlug: string, seed: CourseSeed): CourseMaterial[] 
 export const courses: Course[] = courseSeeds.map((seed) => {
   const poster = posterFor(seed.slug);
 
+  // Running count so each section's lessons can be numbered from where the
+  // previous one stopped.
+  let lessonsBefore = 0;
+
   return {
     id: ids.course(seed.slug),
     slug: seed.slug,
@@ -881,17 +896,24 @@ export const courses: Course[] = courseSeeds.map((seed) => {
     instructor: instructors[seed.instructor],
     posterUrl: poster.url,
     posterBlurDataUrl: poster.blurDataUrl,
+    stageUrl: poster.stageUrl,
+    stageBlurDataUrl: poster.stageBlurDataUrl,
     accentColor: seed.accentColor,
     rating: seed.rating,
     ratingCount: seed.ratingCount,
     enrolledCount: seed.enrolledCount,
     updatedAt: seed.updatedAt,
-    sections: seed.sections.map((section, sectionIndex) => ({
-      id: ids.section(seed.slug, sectionIndex),
-      courseId: ids.course(seed.slug),
-      title: section.title,
-      lessons: buildLessons(seed.slug, sectionIndex, section),
-    })),
+    sections: seed.sections.map((section, sectionIndex) => {
+      const built = buildLessons(seed.slug, sectionIndex, section, lessonsBefore);
+      lessonsBefore += built.length;
+
+      return {
+        id: ids.section(seed.slug, sectionIndex),
+        courseId: ids.course(seed.slug),
+        title: section.title,
+        lessons: built,
+      };
+    }),
     materials: buildMaterials(seed.slug, seed),
   };
 });

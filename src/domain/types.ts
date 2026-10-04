@@ -96,8 +96,12 @@ export interface Course {
   category: CourseCategory;
   level: CourseLevel;
   instructor: Instructor;
+  /** Catalogue thumbnail. Carries the course title, so it is not used as video art. */
   posterUrl: string;
   posterBlurDataUrl: string;
+  /** Player backdrop: same palette, no text, because the stage overlays its own controls. */
+  stageUrl: string;
+  stageBlurDataUrl: string;
   accentColor: string;
   rating: number;
   ratingCount: number;
@@ -167,9 +171,13 @@ export interface CourseSummary {
   enrolledCount: number;
   lessonCount: number;
   totalDurationSeconds: number;
+  /** Completed lessons, exposed so the card can say "7 of 18" without re-deriving. */
+  completedLessons: number;
   progressPercent: number;
   status: CourseStatus;
   lastLessonId: Uuid | null;
+  /** Course last-updated timestamp, ISO-8601. Drives the catalogue "continue" pick. */
+  updatedAt: IsoDateTime;
 }
 
 /** Read model returned to the player island: course + flattened lessons + progress. */

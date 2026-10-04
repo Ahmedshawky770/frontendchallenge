@@ -66,9 +66,8 @@ export function Tabs<T extends string>({
       aria-label={label}
       onKeyDown={handleKeyDown}
       className={
-        isUnderline
-          ? "flex gap-1 border-b border-border"
-          : "scrollStrip flex gap-1.5 rounded-control bg-surface-sunken p-1"
+        [isUnderline ? "flex gap-1 border-b border-border" : "scrollStrip flex gap-1.5 rounded-control bg-surface-sunken p-1", className]
+          .join(" ")
       }
     >
       {items.map((item) => {

@@ -16,6 +16,7 @@ export type IconName =
   | "chevronLeft"
   | "chevronRight"
   | "chevronUp"
+  | "circle"
   | "clock"
   | "download"
   | "file"
@@ -43,6 +44,7 @@ export type IconName =
   | "users"
   | "volume"
   | "volumeMuted"
+  | "warning"
   | "x";
 
 const paths: Record<IconName, string> = {
@@ -54,6 +56,7 @@ const paths: Record<IconName, string> = {
   chevronLeft: "m14.5 6-6 6 6 6",
   chevronRight: "m9.5 6 6 6-6 6",
   chevronUp: "m6 14.5 6-6 6 6",
+  circle: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z",
   clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-13.5V12l3.5 2",
   download: "M12 3.5v11m0 0 4-4m-4 4-4-4M4.5 19.5h15",
   file: "M14 3.5H7.5A1.5 1.5 0 0 0 6 5v14a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 18 19V7.5L14 3.5Zm0 0V7a.5.5 0 0 0 .5.5H18",
@@ -82,6 +85,7 @@ const paths: Record<IconName, string> = {
   users: "M15.5 19.5v-1.5a3.5 3.5 0 0 0-3.5-3.5H7a3.5 3.5 0 0 0-3.5 3.5v1.5M9.5 11a3.25 3.25 0 1 0 0-6.5 3.25 3.25 0 0 0 0 6.5Zm11 8.5v-1.5a3.5 3.5 0 0 0-2.6-3.4M15.5 4.6a3.25 3.25 0 0 1 0 6.3",
   volume: "M4.5 9.5h3l4-3.5v12l-4-3.5h-3v-5Zm10-1a4.5 4.5 0 0 1 0 7m2.5-9.5a8 8 0 0 1 0 12",
   volumeMuted: "M4.5 9.5h3l4-3.5v12l-4-3.5h-3v-5ZM15 10l4.5 4.5m0-4.5L15 14.5",
+  warning: "M12 4.5 21 19.5H3L12 4.5Zm0 5.5v4m0 2.5h.01",
   x: "M6 6l12 12M18 6 6 18",
 };
 

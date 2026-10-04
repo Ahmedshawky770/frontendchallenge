@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
@@ -114,20 +114,68 @@ export function Modal({
  * element is already `position: relative` — which keeps the positioning logic
  * trivial and avoids a z-index context fight with the sticky player.
  */
+export interface PopoverAnchor {
+  top: number;
+  left: number;
+}
+
 export function Popover({
   open,
   onClose,
   label,
   children,
   align = "start",
+  anchor,
+  anchorToFocus = false,
 }: {
   open: boolean;
   onClose: () => void;
   label: string;
   children: ReactNode;
   align?: "start" | "center" | "end";
+  /**
+   * Viewport coordinates for a fixed-position popover.
+   *
+   * Required when the trigger lives inside a scroll container: an absolutely
+   * positioned popover is clipped by the container's `overflow: hidden` and
+   * scrolls away with the content. Anchoring to the viewport and closing on
+   * scroll avoids both.
+   */
+  anchor?: PopoverAnchor;
+  /**
+   * Anchor to whichever control currently has focus.
+   *
+   * A click focuses its target and a keyboard activation moves focus to it, so
+   * the focused element is the trigger in both cases — which means the popover
+   * does not have to be handed element geometry from the panel that owns the
+   * trigger, and cannot be anchored to the wrong element.
+   */
+  anchorToFocus?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [measuredAnchor, setMeasuredAnchor] = useState<PopoverAnchor | null>(null);
+
+  /**
+   * A ref callback runs during commit, before the browser paints, which makes it
+   * the right place to measure a node. The alternative — measuring in an effect —
+   * works but sets state from an effect body, costing an extra render and, here,
+   * a frame where the popover is positioned at the wrong place.
+   */
+  const attachContainer = useCallback(
+    (node: HTMLDivElement | null) => {
+      containerRef.current = node;
+      if (!node || !anchorToFocus) return;
+
+      const trigger = document.activeElement;
+      if (!(trigger instanceof HTMLElement) || trigger === node || node.contains(trigger)) return;
+
+      const rect = trigger.getBoundingClientRect();
+      setMeasuredAnchor({ top: rect.bottom + 8, left: rect.left + rect.width / 2 });
+    },
+    [anchorToFocus],
+  );
+
+  const resolvedAnchor = anchor ?? (anchorToFocus ? measuredAnchor : null);
 
   useEffect(() => {
     if (!open) return;
@@ -148,19 +196,35 @@ export function Popover({
     };
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!resolvedAnchor) return;
+
+    function handleDismiss() {
+      onClose();
+    }
+
+    window.addEventListener("scroll", handleDismiss, true);
+    window.addEventListener("resize", handleDismiss);
+    return () => {
+      window.removeEventListener("scroll", handleDismiss, true);
+      window.removeEventListener("resize", handleDismiss);
+    };
+  }, [resolvedAnchor, onClose]);
+
   if (!open) return null;
 
-  const alignClasses = {
-    start: "left-0",
-    center: "left-1/2 -translate-x-1/2",
-    end: "right-0",
-  } as const;
+  const anchorClasses = resolvedAnchor
+    ? "fixed"
+    : `absolute top-[calc(100%+0.5rem)] ${
+        align === "start" ? "left-0" : align === "end" ? "right-0" : "left-1/2 -translate-x-1/2"
+      }`;
+
+  const style: React.CSSProperties | undefined = resolvedAnchor
+    ? { top: resolvedAnchor.top, left: resolvedAnchor.left, transform: "translateX(-50%)" }
+    : undefined;
 
   return (
-    <div
-      ref={containerRef}
-      className={`absolute top-[calc(100%+0.5rem)] z-40 w-72 ${alignClasses[align]}`}
-    >
+    <div ref={attachContainer} className={`z-50 w-72 ${anchorClasses}`} style={style}>
       <div
         role="dialog"
         aria-label={label}
