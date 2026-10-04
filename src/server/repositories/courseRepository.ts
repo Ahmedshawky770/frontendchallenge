@@ -15,6 +15,7 @@ import {
   flattenLessons,
   toCourseSummary,
 } from "@/domain/progress";
+import type { CatalogFilter } from "@/domain/catalogFilter";
 import type {
   Course,
   CourseSummary,
@@ -48,15 +49,9 @@ export async function saveProgress(progress: EnrollmentProgress): Promise<Enroll
   return progress;
 }
 
-export interface CatalogueFilter {
-  category?: string;
-  query?: string;
-  status?: string;
-}
-
 /** Catalogue projection: filtering happens on the summary, never on the lesson graph. */
 export async function listCourseSummaries(
-  filter: CatalogueFilter,
+  filter: CatalogFilter,
 ): Promise<CourseSummary[]> {
   const normalisedQuery = filter.query?.trim().toLowerCase() ?? "";
 
@@ -67,7 +62,7 @@ export async function listCourseSummaries(
     }),
   );
 
-  return summaries.filter((summary) => {
+  const matched = summaries.filter((summary) => {
     if (filter.category && filter.category !== "all" && summary.category !== filter.category) {
       return false;
     }
@@ -88,6 +83,11 @@ export async function listCourseSummaries(
       summary.instructor.name.toLowerCase().includes(normalisedQuery)
     );
   });
+
+  // Newest first — the catalogue tells the user this is the order, and an
+  // unstable order would make that a lie. Sorting here rather than in the UI
+  // keeps it true for the route handler and the page alike.
+  return matched.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
 
 export interface StoredCourseDetail {

@@ -25,11 +25,12 @@ export async function getCourseDetail(
   course: Course,
   progressOverride?: CourseDetail["progress"],
 ): Promise<CourseDetail> {
-  const { lessons, progress } = await cacheAside({
+  const { value } = await cacheAside({
     key: cacheKeys.courseDetail(course.id),
     ttlSeconds: cacheTtl.courseDetail,
     load: () => loadCourseDetail(course),
   });
+  const { lessons, progress } = value;
 
   const effectiveProgress = progressOverride ?? progress;
 

@@ -116,8 +116,8 @@ export const cacheTtl = {
 } as const;
 
 export const cacheKeys = {
-  catalogue: (category?: string, query?: string) =>
-    `courses:list:${category ?? "all"}:${query ?? ""}`,
+  catalogue: (category?: string, status?: string, query?: string) =>
+    `courses:list:${category ?? "all"}:${status ?? "all"}:${query ?? ""}`,
   courseDetail: (courseId: string) => `courses:detail:${courseId}`,
   courseBySlug: (slug: string) => `courses:slug:${slug}`,
   comments: (courseId: string, lessonId: string | null) =>
